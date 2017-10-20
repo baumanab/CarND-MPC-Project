@@ -98,13 +98,38 @@ int main() {
           * Both are in between [-1, 1].
           *
           */
-          double steer_value;
-          double throttle_value;
+          
+          // start by converting x and y coords from map frame to vehicle frame
+          Eigen::VectorXd vehicle_x(6);
+          Eigen::VectorXd vehicle_y(6);
+
+          for (int i = 0; i < ptsx.size(); ++i){
+              vehicle_x[i] = ((ptsx[i] - px)*cos(psi)) + ((ptsy[i] - py)*sin(psi));
+              vehicle_y[i] = ((ptsy[i] - py)*cos(psi)) - ((ptsx[i] - px)*sin(psi));
+          }
+
+          // fit a 3rd order polynomial
+          auto coeffs = polyfit(vehicle_x, vehicle_y, 3);
+
+          //calculate cross track error and psi error
+          double cte = polyeval(coeffs, 0);  // eval coefficients 
+	  double epsi = -atan(coeffs[1]);
+      
+          // Initialize and create current state vector (starts t=0)
+          Eigen::VectorXd state(6);
+          state << 0, 0, 0, v, cte, epsi;
+
+          // solve this using the mpc class Solve method, returns a vector
+          auto result = mpc.Solve(state, coeffs);    
+
+          // access steer and throttle values from solver result vector
+          double steer_value = -result[0]; // steer is first element of returned vector
+          double throttle_value = result[1]; // throttle is second element of returned vector
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
-          msgJson["steering_angle"] = steer_value;
+          msgJson["steering_angle"] = steer_value/deg2rad(25);
           msgJson["throttle"] = throttle_value;
 
           //Display the MPC predicted trajectory 
@@ -113,6 +138,14 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
+
+         for (int i = 2; i < result.size(); ++i) {
+            if (i % 2 == 0) {  //selects for x vals since x vals are even
+              mpc_x_vals.push_back(result[i]);
+            } else {  // odd values (remainder on modulo) are the y values
+              mpc_y_vals.push_back(result[i]);
+            }
+          }
 
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
@@ -123,6 +156,11 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
+
+          for (int i = 0; i < ptsx.size(); ++i) {
+            next_x_vals.push_back(vehicle_x[i]);
+            next_y_vals.push_back(vehicle_y[i]);
+          }
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
