@@ -7,26 +7,10 @@ using CppAD::AD;
 
 // TODO: Set the timestep length and duration
 size_t N = 10;
-double latency = 0.1; // TODO obtain latency from inputs
+double dt = 0.1;
+double latency = 0.1; // TODO get from inputs
+double cast = latency/dt; //set up offset value for MPC actuator return
 
-// setup scale as a function of latency
-// This was part of the original strategy for dealing with latency, which
-// was to set dt = to the latency (used 0.3, 0.2, 0.1, 0.05) and then
-// to scale relative to that, using the orignal tune (0.1) as the reference
-// this met with limited success.  It was possible but difficult to get to get
-// high and low values (0.3 and 0.05) to work at the same time
-// one setting even had the 50ms latency driving smoothly, but backwards
-// in the end I kep double dt at 0.1 and instead skipped the first 2 actuators 
-// in the MPC solver return.  This works for all latencys tested 50ms - 300ms
-// leaving this code here for fuure development is latency based scaling
-
-double ref_latency = 0.1; // original tune was at 100ms latency
-double ref_fold =  latency/ref_latency; // fold of current latency from reference latency not currently used
-double latency_scale = 1.0; // empirically determined TODO determine from inputs, tried values from 0.1 - 5.0
-double scale_factor = 1.0/(latency * latency_scale); // inverse
-double dt = latency;
-  
-//create a loop to handle too low or too high dt from latency
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -80,23 +64,23 @@ class FG_eval {
 
     // The part of the cost based on the reference state.
     for (int t = 0; t < N; t++) {
-      fg[0] += scale_factor * CppAD::pow(vars[cte_start + t], 2);
-      fg[0] += scale_factor * CppAD::pow(vars[epsi_start + t], 2);
+      fg[0] += CppAD::pow(vars[cte_start + t], 2);
+      fg[0] += CppAD::pow(vars[epsi_start + t], 2);
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 
     // Minimize the use of actuators.
     for (int t = 0; t < N - 1; t++) {
-      fg[0] += scale_factor * CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += scale_factor * CppAD::pow(vars[a_start + t], 2);
+      fg[0] += CppAD::pow(vars[delta_start + t], 2);
+      fg[0] += CppAD::pow(vars[a_start + t], 2);
     }
 
     // Minimize the value gap between sequential actuations.
     // multipier of 1000 empirically determined by incrementing at values
     // of 200 and then fine tuning
     for (int t = 0; t < N - 2; t++) {
-      fg[0] += 1000 * scale_factor * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-      fg[0] +=  scale_factor * CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+      fg[0] += 1000 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] +=  CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     } 
 
     //
@@ -302,9 +286,9 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   vector<double> result;
  
 
-  // return the second actuator values to handly higher latencies (at least 300ms)
-  result.push_back(solution.x[delta_start + 2]);
-  result.push_back(solution.x[a_start + 2]);
+  // return the nth actuator value to handle higher latency
+  result.push_back(solution.x[delta_start + cast]);
+  result.push_back(solution.x[a_start + cast]);
   
   // return ith position (starting from 0)
   for (size_t i = 0; i < N; ++i) {
