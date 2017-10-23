@@ -33,9 +33,7 @@ N and dt determine our time horizon, where N is the number of steps and dt is th
 Values of N investigated were 20, 10, and 5.  dt values investigated were 0.05, 0.1, 0.15, 0.2, and 0.3. Values of N higher than 10 tended
 to add additonal computational latency.  Values of dt below 0.1 resulted in more abrupt action (harder steer towards center).  Values of 
 of dt > 0.15 tended to create a very long trajectory predition, and cause errative behavior on corners.  You can see this by watching the green
-line as it wraps around itself and causes the vehicle to spin out.  As fun experiment I also adjusted the dt way down along with the Kinematic model
-scaling explained below.  This resulted in the vehicle travelling very smoothly around the track, backwards.
-
+line as it wraps around itself and causes the vehicle to spin out.
 
 ## Pre-Processing
 To accomplish our task waypoint coordinates were transformed from global (map) coordinates to vehicle coordinates.
@@ -51,12 +49,20 @@ vehicle_y[i] = ((ptsy[i] - py)*cos(psi)) - ((ptsx[i] - px)*sin(psi));
 Two main strategies were tried to adjust to latency.  Both strategies were tested with latency values of 50ms, 100ms, 200ms, and 300ms and reference velocities of 30 - 100mph.   
 
 ### Scale as function of Latency
-The first strategy involved attempts to scale based on latency.  N was fixed at 10 and dt was set to the latency value. Kinematic model parameters were then scaled based on the latency.  To do this, everything was first tuned at 100ms and a dt 0f 0.1.  This was used as the reference point for additional scaling.  The only way to get this to work for the entire range of latencies tested was to scale everything down so much that the car would not travel beyone 20mph (even with ref_v of 40+) for lower latencies (50ms).  Attempts were made to resolve this (adjust dt down a little for higher latencies and scale throttle porion of model less than before).  This met with limited success.  
-Finally a dual strategy was employed:
-- fix N = 10 and dt = 0.1
-- Scale based on best values empirically determined at 100ms and 40mph
-- In MPC method skip returning the first actuator values.  I tried skipping the first actuator values (return 2nd elements of vector).  This worked well for 50 and 100ms, but failed at 200 and 300ms.  Skipping the first two elements of the actuators (start return at 3rd element of vector) worked for the range of tested latencies, at 40mph.
+Latency was handled by adjusting the MPC actuator outpus proportional to the latency.  
 
+```
+size_t N = 10;
+double dt = 0.1;
+double latency = 0.1; // TODO get from inputs
+double cast = round(latency/dt); //set up offset value for MPC actuator return
+```
+```
+ // return the nth actuator value to handle higher latency
+  result.push_back(solution.x[delta_start + cast]);
+  result.push_back(solution.x[a_start + cast]);
+```
+So, for 100ms cast = 1, for 200ms, cast = 2, and for 300ms, cast = 3. 
 ## References
 Implementation borrowed heavily from the quiz solutions in the MPC lesson (polynomial fit, Global Kinematic Model, Mind the Line)
 

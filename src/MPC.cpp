@@ -2,6 +2,7 @@
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include "Eigen-3.3/Eigen/Core"
+#include <math.h>
 
 using CppAD::AD;
 
@@ -9,7 +10,7 @@ using CppAD::AD;
 size_t N = 10;
 double dt = 0.1;
 double latency = 0.1; // TODO get from inputs
-double cast = latency/dt; //set up offset value for MPC actuator return
+double cast = round(latency/dt); //set up offset value for MPC actuator return
 
 
 // This value assumes the model presented in the classroom is used.
