@@ -46,9 +46,6 @@ vehicle_y[i] = ((ptsy[i] - py)*cos(psi)) - ((ptsx[i] - px)*sin(psi));
 ```
 
 ## Implementation with respect to latency
-Two main strategies were tried to adjust to latency.  Both strategies were tested with latency values of 50ms, 100ms, 200ms, and 300ms and reference velocities of 30 - 100mph.   
-
-### Scale as function of Latency
 Latency was handled by adjusting the MPC actuator outputs proportional to the latency.  
 
 ```
@@ -64,7 +61,8 @@ double cast = round(latency/dt); //set up offset value for MPC actuator return
 ```
 So, for 100ms cast = 1, for 200ms, cast = 2, and for 300ms, cast = 3.  This strategy was effective for latencies of 50ms, 100ms, 200ms, and 300ms.
 
-This way the actuator values are more in sync with where they should be, absent latency.  
+This way the actuator values are more in sync with where they should be, absent latency. 
+ 
 ## References
 Implementation borrowed heavily from the quiz solutions in the MPC lesson (polynomial fit, Global Kinematic Model, Mind the Line)
 
